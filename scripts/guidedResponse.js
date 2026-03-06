@@ -104,12 +104,16 @@ const guidedResponse = async () => {
         } catch (error) {
             console.error(`[GuidedGenerations][Response] Error executing Guided Response stscript: ${error}`);
         } finally {
-            // Always restore the input field from the shared state
+            // Restore the input field only if the user hasn't typed new content.
+            // The trigger clears the textarea before generation, so an empty textarea
+            // means the user hasn't typed anything and restoration is safe.
             const restoredInput = getPreviousImpersonateInput();
-            textarea.value = restoredInput;
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-            if (typeof SillyTavern === 'undefined' || typeof SillyTavern.getContext !== 'function') {
-                debugLog(`[Response] Restoring input field after context error: "${restoredInput}"`);
+            if (textarea.value === '' || textarea.value === restoredInput) {
+                debugLog(`[Response] Restoring input field to: "${restoredInput}"`);
+                textarea.value = restoredInput;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            } else {
+                debugLog(`[Response] User has typed new content, skipping input restoration.`);
             }
         }
     } else {

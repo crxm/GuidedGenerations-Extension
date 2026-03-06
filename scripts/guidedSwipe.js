@@ -252,7 +252,6 @@ const guidedSwipe = async () => {
 
         if (swipeSuccess) {
             debugLog("[Swipe] Guided Swipe finished successfully.");
-            await new Promise(resolve => setTimeout(resolve, 3000));
         } else {
             console.error("[GuidedGenerations][Swipe] Guided Swipe failed during swipe generation step.");
             // Error likely already alerted within generateNewSwipe
@@ -266,14 +265,23 @@ const guidedSwipe = async () => {
             alert(`Guided Swipe Error: ${error.message}`);
         }
     } finally {
-        // Always attempt to restore the input field from the shared state (imported)
-        if (textarea) { // Check if textarea was found initially
+        // Restore the input field, but only if the user hasn't typed new content.
+        if (textarea) {
             const restoredInput = getPreviousImpersonateInput();
-            debugLog(`[Swipe] Restoring input field to: "${restoredInput}" (finally block)`);
-            textarea.value = restoredInput;
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            if (textarea.value === restoredInput) {
+                // Already correct — swipe generation doesn't clear the textarea, so this
+                // is the normal case. No action needed.
+                debugLog(`[Swipe] Input field already contains guide text, no restoration needed.`);
+            } else if (textarea.value === '') {
+                // Textarea was cleared (e.g. manually by user), restore guide text.
+                debugLog(`[Swipe] Restoring input field to: "${restoredInput}" (finally block)`);
+                textarea.value = restoredInput;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            } else {
+                // User has typed new content — don't overwrite it.
+                debugLog(`[Swipe] User has typed new content, skipping input restoration.`);
+            }
         } else {
-            // This case should ideally not happen if the initial check passed
             debugLog("[Swipe] Textarea was not available for restoration in finally block.");
         }
         // Clean up injection using the correct key
