@@ -195,6 +195,7 @@ export const defaultSettings = {
     showUndoButton: false, // Default off for Undo Last Addition button
     showRevertButton: false, // Default off for Revert to Original button
     integrateQrBar: true, // Default on: Toggle for QR bar integration
+    integrateRpgBar: false, // Default off: Toggle for RPG Companion bar integration
     debugMode: false, // Default off: Toggle for debug logging
     persistentGuidesInChatlog: true, // Default on: Show persistent guides in chatlog
     injectionEndRole: 'system', // NEW SETTING: Default role for non-chat injections
@@ -1364,6 +1365,104 @@ function integrateQRBar() {
     return true; // Indicates an attempt was made or state is correct
 }
 
+// Function to integrate RPG Companion bar into our QR container
+function integrateRpgBar() {
+    const rpgButtons = document.getElementById('rpg-plot-buttons');
+    const qrContainer = document.getElementById('gg-qr-container');
+    const rpgWrapper = document.getElementById('extension-buttons-wrapper');
+
+    if (!rpgButtons || !qrContainer) {
+        if (!rpgButtons) return false; // Keep polling if RPG bar not found
+        if (!qrContainer) {
+            console.log(`${extensionName}: QR container (gg-qr-container) not found.`);
+            return false;
+        }
+    }
+
+    const currentSettings = extension_settings[extensionName];
+    if (!currentSettings) return false;
+
+    if (currentSettings.integrateRpgBar) {
+        if (rpgButtons.parentElement !== qrContainer) {
+            try {
+                qrContainer.appendChild(rpgButtons);
+                // Hide the now-empty RPG wrapper to avoid blank space
+                if (rpgWrapper) rpgWrapper.style.display = 'none';
+            } catch (error) {
+                console.error(`${extensionName}: Error moving RPG bar into gg-qr-container:`, error);
+                return false;
+            }
+        }
+    } else {
+        if (rpgButtons.parentElement === qrContainer) {
+            if (rpgWrapper) {
+                try {
+                    rpgWrapper.appendChild(rpgButtons);
+                    rpgWrapper.style.display = '';
+                } catch (error) {
+                    console.error(`${extensionName}: Error moving RPG bar out of gg-qr-container:`, error);
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+// Setup a polling mechanism to integrate RPG Companion bar when it appears
+function startRpgBarIntegration() {
+    let integrated = integrateRpgBar();
+
+    if (!integrated) {
+        const integrationInterval = setInterval(() => {
+            integrated = integrateRpgBar();
+            if (integrated) {
+                clearInterval(integrationInterval);
+            }
+        }, 1000);
+
+        setTimeout(() => {
+            if (!integrated) {
+                clearInterval(integrationInterval);
+            }
+        }, 30000);
+    }
+}
+
+// Set up a mutation observer to detect when the RPG bar appears
+function setupRpgMutationObserver() {
+    const integrationTimer = setInterval(() => {
+        integrateRpgBar();
+        setTimeout(() => {
+            clearInterval(integrationTimer);
+        }, 30000);
+    }, 1000);
+
+    setTimeout(() => {
+        const observer = new MutationObserver((mutations) => {
+            const shouldTryIntegrate = mutations.some(mutation => {
+                if (mutation.addedNodes.length) {
+                    return Array.from(mutation.addedNodes).some(node => {
+                        if (node.id === 'rpg-plot-buttons') return true;
+                        if (node.querySelector && node.querySelector('#rpg-plot-buttons')) return true;
+                        return false;
+                    });
+                }
+                return false;
+            });
+
+            if (shouldTryIntegrate) {
+                integrateRpgBar();
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }, 1000);
+}
+
 // Setup a polling mechanism to integrate QR Bar when it appears
 function startQRBarIntegration() {
     // Try to integrate immediately
@@ -1448,6 +1547,10 @@ async function setup() {
     startQRBarIntegration();
     // Setup mutation observer
     setupQRMutationObserver();
+    // Start the RPG Companion bar integration
+    startRpgBarIntegration();
+    // Setup RPG mutation observer
+    setupRpgMutationObserver();
     // Initialize listeners for guided continue functionality
     initGuidedContinueListeners();
 }

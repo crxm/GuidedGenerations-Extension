@@ -61,6 +61,13 @@
     margin-top: 0 !important;
 }
 
+/* RPG Companion bar styling when integrated */
+#rpg-plot-buttons {
+    margin-top: 0 !important;
+    justify-content: center;
+    flex-grow: 1;
+}
+
 /* Common style for Action Buttons and Menu Button */
 .gg-action-button,
 .gg-menu-button {
